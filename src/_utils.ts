@@ -1,3 +1,4 @@
+import superjson from "superjson";
 type Awaited<T> = T extends Promise<infer U> ? Awaited<U> : T;
 type Promisified<T> = Promise<Awaited<T>>;
 
@@ -31,12 +32,22 @@ function isPureObject(value: any) {
 }
 
 export function stringify(value: any): string {
-  if (isPrimitive(value)) {
-    return String(value);
-  }
-
-  if (isPureObject(value) || Array.isArray(value)) {
-    return JSON.stringify(value);
+  // Support all superjson-compatible types: primitives, objects, arrays,
+  // undefined, bigint, Date, RegExp, Set, Map, Error, URL
+  if (
+    isPrimitive(value) ||
+    isPureObject(value) ||
+    Array.isArray(value) ||
+    value instanceof Date ||
+    value instanceof RegExp ||
+    value instanceof Set ||
+    value instanceof Map ||
+    value instanceof Error ||
+    value instanceof URL ||
+    value === undefined ||
+    typeof value === "bigint"
+  ) {
+    return superjson.stringify(value);
   }
 
   if (typeof value.toJSON === "function") {

@@ -1,4 +1,4 @@
-import destr from "destr";
+import superjson from "superjson";
 import type {
   Storage,
   Driver,
@@ -175,8 +175,10 @@ export function createStorage<T extends StorageValue>(
     getItem(key: string, opts = {}) {
       key = normalizeKey(key);
       const { relativeKey, driver } = getMount(key);
-      return asyncCall(driver.getItem, relativeKey, opts).then(
-        (value) => destr(value) as StorageValue
+      return asyncCall(driver.getItem, relativeKey, opts).then((value) =>
+        typeof value === "string"
+          ? (superjson.parse(value) as StorageValue)
+          : value
       );
     },
     getItems(
@@ -195,7 +197,10 @@ export function createStorage<T extends StorageValue>(
           ).then((r) =>
             r.map((item) => ({
               key: joinKeys(batch.base, item.key),
-              value: destr(item.value),
+              value:
+                typeof item.value === "string"
+                  ? (superjson.parse(item.value) as StorageValue)
+                  : item.value,
             }))
           );
         }
@@ -207,7 +212,10 @@ export function createStorage<T extends StorageValue>(
               item.options
             ).then((value) => ({
               key: item.key,
-              value: destr(value),
+              value:
+                typeof value === "string"
+                  ? (superjson.parse(value) as StorageValue)
+                  : value,
             }));
           })
         );
@@ -322,7 +330,9 @@ export function createStorage<T extends StorageValue>(
           driver.getItem,
           relativeKey + "$",
           opts
-        ).then((value_) => destr<any>(value_));
+        ).then((value_) =>
+          typeof value_ === "string" ? (superjson.parse(value_) as any) : value_
+        );
         if (value && typeof value === "object") {
           // TODO: Support date by destr?
           if (typeof value.atime === "string") {
