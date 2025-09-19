@@ -1,11 +1,14 @@
 {
-  "name": "unstorage",
-  "version": "1.17.1",
+  "name": "@mthezi/unstorage",
+  "version": "1.18.0",
   "description": "Universal Storage Layer",
   "homepage": "https://unstorage.unjs.io",
   "repository": "unjs/unstorage",
   "license": "MIT",
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     "./drivers/*": {
       "types": "./drivers/*.d.ts",
