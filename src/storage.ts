@@ -490,6 +490,87 @@ export function createStorage<T extends StorageValue>(
     del: (key: string, opts = {}) => storage.removeItem(key, opts),
     remove: (key: string, opts = {}) => storage.removeItem(key, opts),
 
+    // Internal bypass methods for library use
+    _setItemInternal: async (key: string, value: any, opts = {}) => {
+      if (value === undefined) {
+        return storage.removeItem(key);
+      }
+      key = normalizeKey(key);
+      const { relativeKey, driver } = getMount(key);
+      if (!driver.setItem) {
+        return; // Readonly
+      }
+      await asyncCall(driver.setItem, relativeKey, stringify(value), opts);
+      if (!driver.watch) {
+        onChange("update", key);
+      }
+    },
+    _setItemsInternal: async (items: any, commonOptions?: any) => {
+      await runBatch(items, commonOptions, async (batch) => {
+        if (batch.driver.setItems) {
+          return asyncCall(
+            batch.driver.setItems,
+            batch.items.map((item) => ({
+              key: item.relativeKey,
+              value: stringify(item.value),
+              options: item.options,
+            })),
+            commonOptions
+          );
+        }
+        if (!batch.driver.setItem) {
+          return;
+        }
+        await Promise.all(
+          batch.items.map((item) => {
+            return asyncCall(
+              batch.driver.setItem!,
+              item.relativeKey,
+              stringify(item.value),
+              item.options
+            );
+          })
+        );
+      });
+    },
+    _getItemsInternal: (items: any, commonOptions: any = {}) => {
+      return runBatch(items, commonOptions, (batch) => {
+        if (batch.driver.getItems) {
+          return asyncCall(
+            batch.driver.getItems,
+            batch.items.map((item) => ({
+              key: item.relativeKey,
+              options: item.options,
+            })),
+            commonOptions
+          ).then((r) =>
+            r.map((item) => ({
+              key: joinKeys(batch.base, item.key),
+              value:
+                typeof item.value === "string"
+                  ? (superjson.parse(item.value) as T)
+                  : item.value,
+            }))
+          );
+        }
+        return Promise.all(
+          batch.items.map((item) => {
+            return asyncCall(
+              batch.driver.getItem,
+              item.relativeKey,
+              item.options
+            ).then((value) => ({
+              key: item.key,
+              value:
+                typeof value === "string"
+                  ? (superjson.parse(value) as T)
+                  : value,
+            }));
+          })
+        );
+      });
+    },
+
     // Migration
     migrate: () => runMigrations(storage as unknown as Storage<T>, options),
     getStorageVersion: () =>
@@ -542,7 +623,7 @@ async function runMigrations<T extends StorageValue>(
     }
 
     // Update storage version
-    await storage.setItem(STORAGE_VERSION_KEY, targetVersion as T);
+    await storage._setItemInternal(STORAGE_VERSION_KEY, targetVersion);
 
     // Run afterMigration hook
     if (migrationHooks?.afterMigration) {

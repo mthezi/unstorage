@@ -142,9 +142,17 @@ export interface Storage<T extends StorageValue = StorageValue> {
     commonOptions?: TransactionOptions
   ): Promise<{ key: K; value: StorageItemType<T, K> | null }[]>;
   getItems<U extends StorageValue>(
-    items: (string | { key: string; options?: TransactionOptions })[],
+    items: T extends StorageDefinition
+      ? never
+      : (string | { key: string; options?: TransactionOptions })[],
     commonOptions?: TransactionOptions
   ): Promise<{ key: string; value: U | null }[]>;
+
+  // Internal bypass methods for library use
+  _getItemsInternal(
+    items: (string | { key: string; options?: TransactionOptions })[],
+    commonOptions?: TransactionOptions
+  ): Promise<{ key: string; value: any }[]>;
   /** @experimental See https://github.com/unjs/unstorage/issues/142 */
   getItemRaw: <T = any>(
     key: string,
@@ -160,8 +168,15 @@ export interface Storage<T extends StorageValue = StorageValue> {
     opts?: TransactionOptions
   ): Promise<void>;
   setItem<U extends StorageValue>(
+    key: T extends StorageDefinition ? never : string,
+    value: T extends StorageDefinition ? never : U,
+    opts?: TransactionOptions
+  ): Promise<void>;
+
+  // Internal bypass methods for library use
+  _setItemInternal(
     key: string,
-    value: U,
+    value: any,
     opts?: TransactionOptions
   ): Promise<void>;
 
@@ -178,7 +193,15 @@ export interface Storage<T extends StorageValue = StorageValue> {
     commonOptions?: TransactionOptions
   ): Promise<void>;
   setItems<U extends StorageValue>(
-    items: { key: string; value: U; options?: TransactionOptions }[],
+    items: T extends StorageDefinition
+      ? never
+      : { key: string; value: U; options?: TransactionOptions }[],
+    commonOptions?: TransactionOptions
+  ): Promise<void>;
+
+  // Internal bypass methods for library use
+  _setItemsInternal(
+    items: { key: string; value: any; options?: TransactionOptions }[],
     commonOptions?: TransactionOptions
   ): Promise<void>;
   /** @experimental See https://github.com/unjs/unstorage/issues/142 */

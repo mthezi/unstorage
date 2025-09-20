@@ -57,7 +57,10 @@ export function prefixStorage<T extends StorageValue>(
     const prefixedItems = items.map((item) =>
       typeof item === "string" ? base + item : { ...item, key: base + item.key }
     );
-    const results = await storage.getItems<U>(prefixedItems, commonOptions);
+    const results = await storage._getItemsInternal(
+      prefixedItems,
+      commonOptions
+    );
     return results.map((entry) => ({
       key: entry.key.slice(base.length),
       value: entry.value,
@@ -73,7 +76,7 @@ export function prefixStorage<T extends StorageValue>(
       value: item.value,
       options: item.options,
     }));
-    return storage.setItems<U>(prefixedItems, commonOptions);
+    return storage._setItemsInternal(prefixedItems, commonOptions);
   };
 
   return nsStorage;
