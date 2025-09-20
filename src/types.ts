@@ -83,6 +83,33 @@ type StorageItemType<T, K> = K extends keyof StorageItemMap<T>
     ? StorageValue
     : T;
 
+export type MigrationFunction<T extends StorageValue = StorageValue> = (
+  storage: Storage<T>
+) => Promise<void> | void;
+
+export interface MigrationOptions<T extends StorageValue = StorageValue> {
+  [version: number]: MigrationFunction<T>;
+}
+
+export interface MigrationHooks<T extends StorageValue = StorageValue> {
+  beforeMigration?: (
+    fromVersion: number,
+    toVersion: number,
+    storage: Storage<T>
+  ) => Promise<void> | void;
+  afterMigration?: (
+    fromVersion: number,
+    toVersion: number,
+    storage: Storage<T>
+  ) => Promise<void> | void;
+  onMigrationError?: (
+    error: Error,
+    fromVersion: number,
+    toVersion: number,
+    storage: Storage<T>
+  ) => Promise<void> | void;
+}
+
 export interface Storage<T extends StorageValue = StorageValue> {
   // Item
   hasItem<
@@ -194,4 +221,8 @@ export interface Storage<T extends StorageValue = StorageValue> {
   has: Storage<T>["hasItem"];
   del: Storage<T>["removeItem"];
   remove: Storage<T>["removeItem"];
+
+  // migrate
+  migrate: () => Promise<void>;
+  getStorageVersion: () => Promise<number | null>;
 }

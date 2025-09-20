@@ -7,6 +7,8 @@ import type {
   StorageValue,
   WatchEvent,
   TransactionOptions,
+  MigrationOptions,
+  MigrationHooks,
 } from "./types";
 import memory from "./drivers/memory";
 import { asyncCall, deserializeRaw, serializeRaw, stringify } from "./_utils";
@@ -26,12 +28,15 @@ interface StorageCTX {
   watchListeners: ((event: WatchEvent, key: string) => void)[];
 }
 
-export interface CreateStorageOptions {
+export interface CreateStorageOptions<T extends StorageValue = StorageValue> {
   driver?: Driver;
+  version?: number;
+  migrations?: MigrationOptions<T>;
+  migrationHooks?: MigrationHooks<T>;
 }
 
 export function createStorage<T extends StorageValue>(
-  options: CreateStorageOptions = {}
+  options: CreateStorageOptions<T> = {}
 ): Storage<T> {
   const context: StorageCTX = {
     mounts: { "": options.driver || memory() },
@@ -176,9 +181,7 @@ export function createStorage<T extends StorageValue>(
       key = normalizeKey(key);
       const { relativeKey, driver } = getMount(key);
       return asyncCall(driver.getItem, relativeKey, opts).then((value) =>
-        typeof value === "string"
-          ? (superjson.parse(value) as StorageValue)
-          : value
+        typeof value === "string" ? (superjson.parse(value) as T) : value
       );
     },
     getItems(
@@ -199,7 +202,7 @@ export function createStorage<T extends StorageValue>(
               key: joinKeys(batch.base, item.key),
               value:
                 typeof item.value === "string"
-                  ? (superjson.parse(item.value) as StorageValue)
+                  ? (superjson.parse(item.value) as T)
                   : item.value,
             }))
           );
@@ -214,7 +217,7 @@ export function createStorage<T extends StorageValue>(
               key: item.key,
               value:
                 typeof value === "string"
-                  ? (superjson.parse(value) as StorageValue)
+                  ? (superjson.parse(value) as T)
                   : value,
             }));
           })
@@ -489,9 +492,81 @@ export function createStorage<T extends StorageValue>(
     has: (key: string, opts = {}) => storage.hasItem(key, opts),
     del: (key: string, opts = {}) => storage.removeItem(key, opts),
     remove: (key: string, opts = {}) => storage.removeItem(key, opts),
+
+    // Migration
+    migrate: () => runMigrations(storage as unknown as Storage<T>, options),
+    getStorageVersion: () =>
+      storage.getItem(STORAGE_VERSION_KEY) as Promise<number | null>,
   };
 
   return storage as unknown as Storage<T>;
+}
+
+const STORAGE_VERSION_KEY = "__storage_version__";
+
+async function runMigrations<T extends StorageValue>(
+  storage: Storage<T>,
+  options: CreateStorageOptions<T>
+): Promise<void> {
+  const { version: targetVersion, migrations, migrationHooks } = options;
+
+  if (targetVersion === undefined || !migrations) {
+    return;
+  }
+
+  try {
+    // Get current version from storage
+    const currentVersion =
+      ((await storage.getItem(STORAGE_VERSION_KEY)) as number) || 0;
+
+    if (currentVersion >= targetVersion) {
+      return; // No migration needed
+    }
+
+    // Run beforeMigration hook
+    if (migrationHooks?.beforeMigration) {
+      await migrationHooks.beforeMigration(
+        currentVersion,
+        targetVersion,
+        storage
+      );
+    }
+
+    // Run migrations in sequence
+    for (
+      let version = currentVersion + 1;
+      version <= targetVersion;
+      version++
+    ) {
+      const migrationFn = migrations[version];
+      if (migrationFn) {
+        await migrationFn(storage);
+      }
+    }
+
+    // Update storage version
+    await storage.setItem(STORAGE_VERSION_KEY, targetVersion as T);
+
+    // Run afterMigration hook
+    if (migrationHooks?.afterMigration) {
+      await migrationHooks.afterMigration(
+        currentVersion,
+        targetVersion,
+        storage
+      );
+    }
+  } catch (error) {
+    // Run error hook
+    if (migrationHooks?.onMigrationError) {
+      await migrationHooks.onMigrationError(
+        error instanceof Error ? error : new Error(String(error)),
+        ((await storage.getItem(STORAGE_VERSION_KEY)) as number) || 0,
+        targetVersion,
+        storage
+      );
+    }
+    throw error;
+  }
 }
 
 export type Snapshot<T = string> = Record<string, T>;
