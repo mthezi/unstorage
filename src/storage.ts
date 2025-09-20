@@ -184,10 +184,7 @@ export function createStorage<T extends StorageValue>(
         typeof value === "string" ? (superjson.parse(value) as T) : value
       );
     },
-    getItems(
-      items: (string | { key: string; options?: TransactionOptions })[],
-      commonOptions = {}
-    ) {
+    getItems(items: any, commonOptions: any = {}) {
       return runBatch(items, commonOptions, (batch) => {
         if (batch.driver.getItems) {
           return asyncCall(
@@ -248,7 +245,7 @@ export function createStorage<T extends StorageValue>(
         onChange("update", key);
       }
     },
-    async setItems(items, commonOptions) {
+    async setItems(items: any, commonOptions?: any) {
       await runBatch(items, commonOptions, async (batch) => {
         if (batch.driver.setItems) {
           return asyncCall(

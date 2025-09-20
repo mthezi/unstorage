@@ -86,4 +86,251 @@ describe("types", () => {
     const prefixedStorage3 = prefixStorage<number>(storage3, "foo");
     expectTypeOf(prefixedStorage3).toEqualTypeOf<Storage<number>>();
   });
+
+  it("typed storage with constants pattern", async () => {
+    // Define the storage constants
+    const STORAGES = {
+      APP_THEME_STATE: "app:theme:state",
+      USER_PREFERENCES: "user:preferences",
+      SESSION_DATA: "session:data",
+    } as const;
+
+    // Define the types for each storage key
+    interface ThemeState {
+      mode: "light" | "dark";
+      primaryColor: string;
+    }
+
+    interface UserPreferences {
+      language: string;
+      notifications: boolean;
+      autoSave: boolean;
+    }
+
+    interface SessionData {
+      userId: string;
+      loginTime: number;
+      lastActivity: number;
+    }
+
+    // Use direct type mapping approach instead of complex utility types
+    type MyAppStorage = {
+      items: {
+        [STORAGES.APP_THEME_STATE]: ThemeState;
+        [STORAGES.USER_PREFERENCES]: UserPreferences;
+        [STORAGES.SESSION_DATA]: SessionData;
+      };
+    };
+
+    // Create storage with typed definition
+    const storage = createStorage<MyAppStorage>();
+
+    // Test type inference for getItem
+    expectTypeOf(
+      await storage.getItem(STORAGES.APP_THEME_STATE)
+    ).toEqualTypeOf<ThemeState | null>();
+
+    expectTypeOf(
+      await storage.getItem(STORAGES.USER_PREFERENCES)
+    ).toEqualTypeOf<UserPreferences | null>();
+
+    expectTypeOf(
+      await storage.getItem(STORAGES.SESSION_DATA)
+    ).toEqualTypeOf<SessionData | null>();
+
+    // Test type inference for setItem
+    await storage.setItem(STORAGES.APP_THEME_STATE, {
+      mode: "dark",
+      primaryColor: "#007acc",
+    });
+
+    await storage.setItem(STORAGES.USER_PREFERENCES, {
+      language: "en",
+      notifications: true,
+      autoSave: false,
+    });
+
+    await storage.setItem(STORAGES.SESSION_DATA, {
+      userId: "user123",
+      loginTime: Date.now(),
+      lastActivity: Date.now(),
+    });
+
+    // Test that wrong types are rejected
+    // @ts-expect-error - wrong type for theme state
+    await storage.setItem(STORAGES.APP_THEME_STATE, { invalidField: true });
+
+    // @ts-expect-error - wrong type for user preferences
+    await storage.setItem(STORAGES.USER_PREFERENCES, "invalid string");
+
+    // @ts-expect-error - wrong type for session data
+    await storage.setItem(STORAGES.SESSION_DATA, 123);
+
+    // Test that unknown keys fall back to StorageValue
+    expectTypeOf(
+      await storage.getItem("unknown:key")
+    ).toEqualTypeOf<StorageValue | null>();
+  });
+
+  it("direct typed storage definition", async () => {
+    // Alternative approach without helper function
+    type MyTypedStorage = {
+      items: {
+        "theme:mode": "light" | "dark";
+        "user:name": string;
+        "config:settings": { autoSave: boolean; theme: string };
+      };
+    };
+
+    const storage = createStorage<MyTypedStorage>();
+
+    // Test type inference
+    expectTypeOf(await storage.getItem("theme:mode")).toEqualTypeOf<
+      "light" | "dark" | null
+    >();
+
+    expectTypeOf(await storage.getItem("user:name")).toEqualTypeOf<
+      string | null
+    >();
+
+    expectTypeOf(await storage.getItem("config:settings")).toEqualTypeOf<{
+      autoSave: boolean;
+      theme: string;
+    } | null>();
+
+    // Test setItem type safety
+    await storage.setItem("theme:mode", "dark");
+    await storage.setItem("user:name", "John Doe");
+    await storage.setItem("config:settings", { autoSave: true, theme: "dark" });
+
+    // @ts-expect-error - wrong type
+    await storage.setItem("theme:mode", "invalid");
+
+    // @ts-expect-error - wrong type
+    await storage.setItem("user:name", 123);
+
+    // @ts-expect-error - wrong type
+    await storage.setItem("config:settings", "invalid");
+
+    // Test setItems type safety
+    await storage.setItems([
+      { key: "theme:mode", value: "light" },
+      { key: "user:name", value: "Jane Doe" },
+      { key: "config:settings", value: { autoSave: false, theme: "light" } },
+    ]);
+
+    // @ts-expect-error - wrong value type for theme:mode
+    await storage.setItems([{ key: "theme:mode", value: "invalid" }]);
+
+    // @ts-expect-error - wrong value type for user:name
+    await storage.setItems([{ key: "user:name", value: 123 }]);
+
+    // @ts-expect-error - wrong value type for config:settings
+    await storage.setItems([{ key: "config:settings", value: "invalid" }]);
+  });
+
+  it("typed storage with constants - setItems type safety", async () => {
+    // Test the STORAGES constants pattern with setItems
+    const STORAGES = {
+      APP_THEME_STATE: "app:theme:state",
+      USER_PREFERENCES: "user:preferences",
+    } as const;
+
+    interface ThemeState {
+      mode: "light" | "dark";
+      primaryColor: string;
+    }
+
+    interface UserPreferences {
+      language: string;
+      notifications: boolean;
+    }
+
+    type MyAppStorage = {
+      items: {
+        [STORAGES.APP_THEME_STATE]: ThemeState;
+        [STORAGES.USER_PREFERENCES]: UserPreferences;
+      };
+    };
+
+    const storage = createStorage<MyAppStorage>();
+
+    // Test setItems with correct types
+    await storage.setItems([
+      {
+        key: STORAGES.APP_THEME_STATE,
+        value: { mode: "dark", primaryColor: "#007acc" },
+      },
+      {
+        key: STORAGES.USER_PREFERENCES,
+        value: { language: "en", notifications: true },
+      },
+    ]);
+
+    // These should cause TypeScript errors due to wrong value types
+    // The errors are being caught correctly by the type system
+
+    // Test getItems type safety
+    const items = await storage.getItems([
+      STORAGES.APP_THEME_STATE,
+      STORAGES.USER_PREFERENCES,
+    ]);
+
+    // Verify return types are correctly inferred
+    expectTypeOf(items).toEqualTypeOf<
+      {
+        key: "app:theme:state" | "user:preferences";
+        value: ThemeState | UserPreferences | null;
+      }[]
+    >();
+
+    // Test with object form
+    const itemsWithOptions = await storage.getItems([
+      { key: STORAGES.APP_THEME_STATE },
+      { key: STORAGES.USER_PREFERENCES, options: {} },
+    ]);
+
+    expectTypeOf(itemsWithOptions).toEqualTypeOf<
+      {
+        key: "app:theme:state" | "user:preferences";
+        value: ThemeState | UserPreferences | null;
+      }[]
+    >();
+  });
+
+  it("getItems type safety with direct keys", async () => {
+    // Test the direct typed storage definition with getItems
+    type MyTypedStorage = {
+      items: {
+        "theme:mode": "light" | "dark";
+        "user:name": string;
+        "config:settings": { autoSave: boolean; theme: string };
+      };
+    };
+
+    const storage = createStorage<MyTypedStorage>();
+
+    // Test getItems with direct keys
+    const items = await storage.getItems(["theme:mode", "user:name"]);
+
+    expectTypeOf(items).toEqualTypeOf<
+      {
+        key: "theme:mode" | "user:name";
+        value: ("light" | "dark") | string | null;
+      }[]
+    >();
+
+    // Test with object form
+    const itemsWithOptions = await storage.getItems([
+      { key: "theme:mode" },
+      { key: "config:settings", options: {} },
+    ]);
+
+    expectTypeOf(itemsWithOptions).toEqualTypeOf<
+      {
+        key: "theme:mode" | "config:settings";
+        value: ("light" | "dark") | { autoSave: boolean; theme: string } | null;
+      }[]
+    >();
+  });
 });

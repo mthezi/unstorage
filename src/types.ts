@@ -72,7 +72,7 @@ export interface Driver<OptionsT = any, InstanceT = any> {
 }
 
 type StorageDefinition = {
-  items: unknown;
+  items: Record<string, unknown>;
   [key: string]: unknown;
 };
 
@@ -134,10 +134,17 @@ export interface Storage<T extends StorageValue = StorageValue> {
   ): Promise<R | null>;
 
   /** @experimental */
-  getItems: <U extends T>(
+  getItems<
+    U extends Extract<T, StorageDefinition>,
+    K extends keyof StorageItemMap<U>,
+  >(
+    items: (K | { key: K; options?: TransactionOptions })[],
+    commonOptions?: TransactionOptions
+  ): Promise<{ key: K; value: StorageItemType<T, K> | null }[]>;
+  getItems<U extends T>(
     items: (string | { key: string; options?: TransactionOptions })[],
     commonOptions?: TransactionOptions
-  ) => Promise<{ key: string; value: U }[]>;
+  ): Promise<{ key: string; value: U }[]>;
   /** @experimental See https://github.com/unjs/unstorage/issues/142 */
   getItemRaw: <T = any>(
     key: string,
@@ -159,10 +166,21 @@ export interface Storage<T extends StorageValue = StorageValue> {
   ): Promise<void>;
 
   /** @experimental */
-  setItems: <U extends T>(
+  setItems<
+    U extends Extract<T, StorageDefinition>,
+    K extends keyof StorageItemMap<U>,
+  >(
+    items: {
+      key: K;
+      value: StorageItemType<T, K>;
+      options?: TransactionOptions;
+    }[],
+    commonOptions?: TransactionOptions
+  ): Promise<void>;
+  setItems<U extends T>(
     items: { key: string; value: U; options?: TransactionOptions }[],
     commonOptions?: TransactionOptions
-  ) => Promise<void>;
+  ): Promise<void>;
   /** @experimental See https://github.com/unjs/unstorage/issues/142 */
   setItemRaw: <T = any>(
     key: string,
