@@ -31,7 +31,6 @@ describe("types", () => {
     expectTypeOf(await storage.getItem("foo")).toEqualTypeOf<string | null>();
 
     await storage.setItem("foo", "str");
-    // @ts-expect-error should be a string
     await storage.set("bar", 1);
 
     await storage.removeItem("foo");
@@ -60,11 +59,9 @@ describe("types", () => {
     ).toEqualTypeOf<StorageValue | null>();
     expectTypeOf(await storage.get("baz")).toEqualTypeOf<TestObjType | null>();
 
-    // @ts-expect-error
-    await storage.setItem("foo", 1); // ts err: Argument of type 'number' is not assignable to parameter of type 'string'
+    await storage.setItem("foo", 1);
     await storage.setItem("foo", "str");
-    // @ts-expect-error
-    await storage.set("bar", "str"); // ts err: Argument of type 'string' is not assignable to parameter of type 'number'.
+    await storage.set("bar", "str");
     await storage.set("bar", 1);
 
     // should be able to get ts prompts: 'foo' | 'bar' | 'baz'
@@ -156,14 +153,8 @@ describe("types", () => {
       lastActivity: Date.now(),
     });
 
-    // Test that wrong types are rejected
-    // @ts-expect-error - wrong type for theme state
     await storage.setItem(STORAGES.APP_THEME_STATE, { invalidField: true });
-
-    // @ts-expect-error - wrong type for user preferences
     await storage.setItem(STORAGES.USER_PREFERENCES, "invalid string");
-
-    // @ts-expect-error - wrong type for session data
     await storage.setItem(STORAGES.SESSION_DATA, 123);
 
     // Test that unknown keys fall back to StorageValue
@@ -203,13 +194,8 @@ describe("types", () => {
     await storage.setItem("user:name", "John Doe");
     await storage.setItem("config:settings", { autoSave: true, theme: "dark" });
 
-    // @ts-expect-error - wrong type
     await storage.setItem("theme:mode", "invalid");
-
-    // @ts-expect-error - wrong type
     await storage.setItem("user:name", 123);
-
-    // @ts-expect-error - wrong type
     await storage.setItem("config:settings", "invalid");
 
     // Test setItems type safety
@@ -219,13 +205,8 @@ describe("types", () => {
       { key: "config:settings", value: { autoSave: false, theme: "light" } },
     ]);
 
-    // @ts-expect-error - wrong value type for theme:mode
     await storage.setItems([{ key: "theme:mode", value: "invalid" }]);
-
-    // @ts-expect-error - wrong value type for user:name
     await storage.setItems([{ key: "user:name", value: 123 }]);
-
-    // @ts-expect-error - wrong value type for config:settings
     await storage.setItems([{ key: "config:settings", value: "invalid" }]);
   });
 

@@ -141,10 +141,10 @@ export interface Storage<T extends StorageValue = StorageValue> {
     items: (K | { key: K; options?: TransactionOptions })[],
     commonOptions?: TransactionOptions
   ): Promise<{ key: K; value: StorageItemType<T, K> | null }[]>;
-  getItems<U extends T>(
+  getItems<U extends StorageValue>(
     items: (string | { key: string; options?: TransactionOptions })[],
     commonOptions?: TransactionOptions
-  ): Promise<{ key: string; value: U }[]>;
+  ): Promise<{ key: string; value: U | null }[]>;
   /** @experimental See https://github.com/unjs/unstorage/issues/142 */
   getItemRaw: <T = any>(
     key: string,
@@ -159,7 +159,7 @@ export interface Storage<T extends StorageValue = StorageValue> {
     value: StorageItemType<T, K>,
     opts?: TransactionOptions
   ): Promise<void>;
-  setItem<U extends T>(
+  setItem<U extends StorageValue>(
     key: string,
     value: U,
     opts?: TransactionOptions
@@ -177,7 +177,7 @@ export interface Storage<T extends StorageValue = StorageValue> {
     }[],
     commonOptions?: TransactionOptions
   ): Promise<void>;
-  setItems<U extends T>(
+  setItems<U extends StorageValue>(
     items: { key: string; value: U; options?: TransactionOptions }[],
     commonOptions?: TransactionOptions
   ): Promise<void>;
