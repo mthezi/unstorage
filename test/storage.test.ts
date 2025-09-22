@@ -8,6 +8,7 @@ import {
 } from "../src";
 import memory from "../src/drivers/memory";
 import fs from "../src/drivers/fs";
+import { safeSuperjsonParse } from "../src/_utils";
 
 const data = {
   "etc:conf": "test",
@@ -287,5 +288,60 @@ describe("Regression", () => {
       { key: "key1", value: "value1" },
       { key: "key2", value: "value2" },
     ]);
+  });
+
+  it("handles superjson edge cases correctly", async () => {
+    const storage = createStorage();
+
+    // Test normal valid values work correctly
+    await storage.setItem("validObj", { test: "value" });
+    expect(await storage.getItem("validObj")).toEqual({ test: "value" });
+
+    await storage.setItem("validArray", [1, 2, 3]);
+    expect(await storage.getItem("validArray")).toEqual([1, 2, 3]);
+
+    await storage.setItem("validString", "test");
+    expect(await storage.getItem("validString")).toBe("test");
+
+    await storage.setItem("validNumber", 42);
+    expect(await storage.getItem("validNumber")).toBe(42);
+
+    await storage.setItem("emptyString", "");
+    expect(await storage.getItem("emptyString")).toBe("");
+
+    await storage.setItem("nullValue", null);
+    expect(await storage.getItem("nullValue")).toBe(null);
+  });
+
+  it("safeSuperjsonParse handles edge cases correctly", () => {
+    // Test empty string - should return null
+    expect(safeSuperjsonParse("")).toBe(null);
+
+    // Test empty object string - superjson.parse("{}") returns undefined, we return null
+    expect(safeSuperjsonParse("{}")).toBe(null);
+
+    // Test invalid JSON strings - should return null
+    expect(safeSuperjsonParse("invalid json")).toBe(null);
+    expect(safeSuperjsonParse("{invalid}")).toBe(null);
+    expect(safeSuperjsonParse('{"incomplete": ')).toBe(null);
+
+    // Test malformed superjson - should return null
+    expect(safeSuperjsonParse('{"json": "test", "meta": invalid}')).toBe(null);
+
+    // Test non-string inputs - should return as-is
+    expect(safeSuperjsonParse(42)).toBe(42);
+    expect(safeSuperjsonParse(null)).toBe(null);
+    expect(safeSuperjsonParse(undefined)).toBe(undefined);
+    expect(safeSuperjsonParse({ test: "value" })).toEqual({ test: "value" });
+
+    // Test valid superjson strings - should parse correctly
+    expect(safeSuperjsonParse('{"json":"test"}')).toBe("test");
+    expect(safeSuperjsonParse('{"json":42}')).toBe(42);
+    expect(safeSuperjsonParse('{"json":true}')).toBe(true);
+    expect(safeSuperjsonParse('{"json":null}')).toBe(null);
+    expect(safeSuperjsonParse('{"json":{"key":"value"}}')).toEqual({
+      key: "value",
+    });
+    expect(safeSuperjsonParse('{"json":[1,2,3]}')).toEqual([1, 2, 3]);
   });
 });

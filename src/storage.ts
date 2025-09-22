@@ -1,4 +1,3 @@
-import superjson from "superjson";
 import type {
   Storage,
   Driver,
@@ -11,7 +10,13 @@ import type {
   MigrationHooks,
 } from "./types";
 import memory from "./drivers/memory";
-import { asyncCall, deserializeRaw, serializeRaw, stringify } from "./_utils";
+import {
+  asyncCall,
+  deserializeRaw,
+  serializeRaw,
+  stringify,
+  safeSuperjsonParse,
+} from "./_utils";
 import {
   normalizeKey,
   normalizeBaseKey,
@@ -180,8 +185,8 @@ export function createStorage<T extends StorageValue>(
     getItem(key: string, opts = {}) {
       key = normalizeKey(key);
       const { relativeKey, driver } = getMount(key);
-      return asyncCall(driver.getItem, relativeKey, opts).then((value) =>
-        typeof value === "string" ? (superjson.parse(value) as T) : value
+      return asyncCall(driver.getItem, relativeKey, opts).then(
+        (value) => safeSuperjsonParse(value) as T
       );
     },
     getItems(items: any, commonOptions: any = {}) {
@@ -197,10 +202,7 @@ export function createStorage<T extends StorageValue>(
           ).then((r) =>
             r.map((item) => ({
               key: joinKeys(batch.base, item.key),
-              value:
-                typeof item.value === "string"
-                  ? (superjson.parse(item.value) as T)
-                  : item.value,
+              value: safeSuperjsonParse(item.value) as T,
             }))
           );
         }
@@ -212,10 +214,7 @@ export function createStorage<T extends StorageValue>(
               item.options
             ).then((value) => ({
               key: item.key,
-              value:
-                typeof value === "string"
-                  ? (superjson.parse(value) as T)
-                  : value,
+              value: safeSuperjsonParse(value) as T,
             }));
           })
         );
@@ -330,9 +329,7 @@ export function createStorage<T extends StorageValue>(
           driver.getItem,
           relativeKey + "$",
           opts
-        ).then((value_) =>
-          typeof value_ === "string" ? (superjson.parse(value_) as any) : value_
-        );
+        ).then((value_) => safeSuperjsonParse(value_) as any);
         if (value && typeof value === "object") {
           // TODO: Support date by destr?
           if (typeof value.atime === "string") {
@@ -546,10 +543,7 @@ export function createStorage<T extends StorageValue>(
           ).then((r) =>
             r.map((item) => ({
               key: joinKeys(batch.base, item.key),
-              value:
-                typeof item.value === "string"
-                  ? (superjson.parse(item.value) as T)
-                  : item.value,
+              value: safeSuperjsonParse(item.value) as T,
             }))
           );
         }
@@ -561,10 +555,7 @@ export function createStorage<T extends StorageValue>(
               item.options
             ).then((value) => ({
               key: item.key,
-              value:
-                typeof value === "string"
-                  ? (superjson.parse(value) as T)
-                  : value,
+              value: safeSuperjsonParse(value) as T,
             }));
           })
         );

@@ -57,6 +57,22 @@ export function stringify(value: any): string {
   throw new Error("[unstorage] Cannot stringify value!");
 }
 
+export function safeSuperjsonParse(value: any): any {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  if (value === "" || value === "{}") {
+    return null;
+  }
+
+  try {
+    return superjson.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 export const BASE64_PREFIX = "base64:";
 
 export function serializeRaw(value: any) {
