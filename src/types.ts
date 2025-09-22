@@ -27,6 +27,13 @@ export interface DriverFlags {
   ttl?: boolean;
 }
 
+export interface QueueOptions {
+  batchSize?: number;
+  flushInterval?: number;
+  maxQueueSize?: number;
+  mergeUpdates?: boolean;
+}
+
 export interface Driver<OptionsT = any, InstanceT = any> {
   name?: string;
   flags?: DriverFlags;
